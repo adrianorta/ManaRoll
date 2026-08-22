@@ -17,6 +17,126 @@
   </head>
   <body>
     <div id="root"></div>
+	<script>
+(function(){
+  const DECKS_KEY = 'mana-roll.decks';
+  const ROLLS_KEY = 'mana-roll.rolls';
+  const origFetch = window.fetch && window.fetch.bind(window);
+  function safeParse(raw, fallback) { try { return JSON.parse(raw); } catch (e) { return fallback; } }
+  async function readRequestBody(input, init) {
+    if (init && init.body) {
+      if (typeof init.body === 'string') return init.body;
+      try { if (init.body instanceof FormData) return null; } catch (e) {}
+    }
+    if (input instanceof Request) {
+      try { return await input.clone().text(); } catch (e) { return null; }
+    }
+    return null;
+  }
+
+  function loadDecks() { try { const raw = localStorage.getItem(DECKS_KEY); if (raw) return JSON.parse(raw); } catch (e) {} return []; }
+  function saveDecks(decks) { try { localStorage.setItem(DECKS_KEY, JSON.stringify(decks)); } catch (e) {} }
+  function loadRolls() { try { const raw = localStorage.getItem(ROLLS_KEY); if (raw) return JSON.parse(raw); } catch (e) {} return {}; }
+  function saveRolls(rolls) { try { localStorage.setItem(ROLLS_KEY, JSON.stringify(rolls)); } catch (e) {} }
+
+  if (!origFetch) return;
+  window.fetch = async function(input, init) {
+    try {
+      const reqUrl = (typeof input === 'string') ? input : input.url;
+      const url = new URL(reqUrl, location.href);
+      const pathname = url.pathname || '';
+      const method = (init && init.method) || (input && input.method) || 'GET';
+      const m = method.toUpperCase();
+      const lastSeg = pathname.split('/').pop();
+
+      // Intercept API paths and the two JSON files used by the app.
+      if (pathname.includes('/api/') || lastSeg === 'decks.json' || lastSeg === 'rolls.json') {
+        // Serve decks.json/rolls.json from localStorage (or empty defaults).
+        if (lastSeg === 'decks.json' && m === 'GET') {
+          return new Response(JSON.stringify(loadDecks()), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (lastSeg === 'rolls.json' && m === 'GET') {
+          return new Response(JSON.stringify(loadRolls()), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // /api/decks
+        if (pathname.endsWith('/api/decks') || pathname.endsWith('/api/decks/')) {
+          if (m === 'GET') {
+            return new Response(JSON.stringify(loadDecks()), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          if (m === 'POST') {
+            const txt = await readRequestBody(input, init);
+            const payload = txt ? safeParse(txt, {}) : {};
+            const decks = loadDecks();
+            const nextId = (decks.length ? Math.max(...decks.map((d) => Number(d.id) || 0)) : 0) + 1;
+            if (!payload.id) payload.id = nextId;
+            decks.push(payload);
+            saveDecks(decks);
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+        }
+
+        // /api/decks/:id
+        const decksMatch = pathname.match(/\/api\/decks\/([^\/]+)\/?$/);
+        if (decksMatch) {
+          const idStr = decksMatch[1];
+          if (m === 'PUT') {
+            const txt = await readRequestBody(input, init);
+            const payload = txt ? safeParse(txt, {}) : {};
+            const decks = loadDecks();
+            const id = Number(idStr);
+            let updated = false;
+            for (let i = 0; i < decks.length; i += 1) {
+              if (Number(decks[i].id) === id) {
+                decks[i].name = payload.name;
+                updated = true;
+                break;
+              }
+            }
+            saveDecks(decks);
+            if (!updated) return new Response(JSON.stringify({ error: 'Deck not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          if (m === 'DELETE') {
+            let decks = loadDecks();
+            if (idStr === 'undefined' || idStr === '') {
+              if (decks.length) decks.pop();
+            } else {
+              const id = Number(idStr);
+              decks = decks.filter((d) => Number(d.id) !== id);
+            }
+            saveDecks(decks);
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+        }
+
+        // /api/roll-sessions/:day
+        const rollsMatch = pathname.match(/\/api\/roll-sessions\/([^\/]+)\/?$/);
+        if (rollsMatch) {
+          const day = rollsMatch[1];
+          if (m === 'GET') {
+            const rolls = loadRolls();
+            return new Response(JSON.stringify(rolls[day] || { results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+          if (m === 'PUT') {
+            const txt = await readRequestBody(input, init);
+            const payload = txt ? safeParse(txt, {}) : {};
+            const rolls = loadRolls();
+            rolls[day] = payload;
+            saveRolls(rolls);
+            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+          }
+        }
+      }
+
+      // Not an intercepted path — delegate to original fetch.
+      return origFetch(input, init);
+    } catch (e) {
+      try { return origFetch(input, init); } catch (e2) { return Promise.reject(e2); }
+    }
+  };
+})();
+</script>
 	<script src="./assets/script.js?v=2"></script>
     <script src="./assets/enhancements.js?v=2"></script>
   <script data-pplx-inline-edit>

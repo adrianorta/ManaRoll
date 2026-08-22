@@ -151,73 +151,103 @@
   }
 
   async function request(path, options) {
-    // Prefer the network API when available, but gracefully fall back to a
-    // localStorage-backed implementation so the app can run on GitHub Pages.
+    // Local-only implementation: use localStorage for all app data. No network
+    // requests are performed and no bundled JSON files are required.
     options = options || {};
-    try {
-      const response = await fetch(path, options);
-      if (response.ok) {
-        if (response.status === 204) return null;
-        return response.json();
-      }
-      // If non-OK response, fall through to local handler for /api paths.
-    } catch (e) {
-      // Network or CORS error — fall back to local handler for /api paths.
-    }
-
-    // Local fallback for the small set of API endpoints used by the
-    // enhancements. Persists data in localStorage so each visitor has their own
-    // copy that survives page reloads.
-    if (!path.startsWith("/api/")) {
-      throw new Error(`${options && options.method ? options.method : "GET"} ${path} failed`);
-    }
 
     const DECKS_KEY = "mana-roll.decks";
     const ROLLS_KEY = "mana-roll.rolls";
 
-    async function loadDecksFromStorage() {
+    function loadDecksFromStorage() {
       try {
         const raw = window.localStorage.getItem(DECKS_KEY);
         if (raw) return JSON.parse(raw);
       } catch (e) {}
-      try {
-        const resp = await fetch("./decks.json");
-        if (resp.ok) {
-          const data = await resp.json();
-          try { window.localStorage.setItem(DECKS_KEY, JSON.stringify(data)); } catch (e) {}
-          return data;
-        }
-      } catch (e) {}
       return [];
     }
 
-    async function saveDecksToStorage(decks) {
+    function saveDecksToStorage(decks) {
       try { window.localStorage.setItem(DECKS_KEY, JSON.stringify(decks)); } catch (e) {}
     }
 
-    async function loadRollsFromStorage() {
+    function loadRollsFromStorage() {
       try {
         const raw = window.localStorage.getItem(ROLLS_KEY);
         if (raw) return JSON.parse(raw);
       } catch (e) {}
-      try {
-        const resp = await fetch("./rolls.json");
-        if (resp.ok) {
-          const data = await resp.json();
-          try { window.localStorage.setItem(ROLLS_KEY, JSON.stringify(data)); } catch (e) {}
-          return data;
-        }
-      } catch (e) {}
       return {};
     }
 
-    async function saveRollsToStorage(rolls) {
+    function saveRollsToStorage(rolls) {
       try { window.localStorage.setItem(ROLLS_KEY, JSON.stringify(rolls)); } catch (e) {}
     }
 
     const method = (options && options.method) ? options.method.toUpperCase() : "GET";
 
     if (path === "/api/decks") {
+      if (method === "GET") {
+        return loadDecksFromStorage();
+      }
+      if (method === "POST") {
+        const payload = options && options.body ? JSON.parse(options.body) : {};
+        const decks = loadDecksFromStorage();
+        const nextId = (decks.length ? Math.max(...decks.map((d) => Number(d.id) || 0)) : 0) + 1;
+        if (!payload.id) payload.id = nextId;
+        decks.push(payload);
+        saveDecksToStorage(decks);
+        return { success: true };
+      }
+    }
+
+    if (path.startsWith("/api/decks/")) {
+      const idStr = path.split("/").pop();
+      if (method === "PUT") {
+        const payload = options && options.body ? JSON.parse(options.body) : {};
+        const decks = loadDecksFromStorage();
+        const id = Number(idStr);
+        let updated = false;
+        for (let i = 0; i < decks.length; i += 1) {
+          if (Number(decks[i].id) === id) {
+            decks[i].name = payload.name;
+            updated = true;
+            break;
+          }
+        }
+        saveDecksToStorage(decks);
+        if (!updated) throw new Error("Deck not found");
+        return { success: true };
+      }
+      if (method === "DELETE") {
+        let decks = loadDecksFromStorage();
+        if (idStr === "undefined" || idStr === "") {
+          if (decks.length) decks.pop();
+        } else {
+          const id = Number(idStr);
+          decks = decks.filter((d) => Number(d.id) !== id);
+        }
+        saveDecksToStorage(decks);
+        return { success: true };
+      }
+    }
+
+    if (path.startsWith("/api/roll-sessions/")) {
+      const day = path.split("/").pop();
+      if (method === "GET") {
+        const rolls = loadRollsFromStorage();
+        return rolls[day] || { results: [] };
+      }
+      if (method === "PUT") {
+        const payload = options && options.body ? JSON.parse(options.body) : {};
+        const rolls = loadRollsFromStorage();
+        rolls[day] = payload;
+        saveRollsToStorage(rolls);
+        return { success: true };
+      }
+    }
+
+    throw new Error(`${method} ${path} failed`);
+  }
+
       if (method === "GET") {
         return await loadDecksFromStorage();
       }
