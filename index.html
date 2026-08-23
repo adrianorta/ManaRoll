@@ -3,471 +3,718 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <link rel="icon" type="image/png" href="./favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
-      rel="stylesheet"
-    />
     <title>Mana Roll — Daily MTG Deck Dice</title>
-    <meta name="description" content="Roll five mana dice each day to randomly pick which Magic: The Gathering decks to play." />
-    
-    <link rel="stylesheet" href="./assets/stylesheet.css?v=2">
+    <meta name="description" content="Track decks and roll mana colors without any backend or network requests." />
+    <style>
+      :root {
+        --bg: #0b1020;
+        --bg-2: #111827;
+        --panel: rgba(19, 28, 49, 0.82);
+        --panel-strong: rgba(22, 35, 62, 0.96);
+        --line: rgba(148, 163, 184, 0.28);
+        --text: #edf3ff;
+        --muted: #b9c7e4;
+        --accent: #7dd3fc;
+        --accent-2: #a78bfa;
+        --accent-3: #3b82f6;
+        --danger: #fca5a5;
+        --success: #86efac;
+        --shadow: rgba(8, 15, 30, 0.7);
+        --white: #f8fafc;
+        --blue: #60a5fa;
+        --blue-deep: #2563eb;
+        --black: #0f172a;
+        --red: #f87171;
+        --red-deep: #dc2626;
+        --green: #4ade80;
+        --green-deep: #16a34a;
+        --gold: #fbbf24;
+        --gold-deep: #d97706;
+      }
+      * { box-sizing: border-box; }
+      html {
+        background: #0b1020;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Inter, sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(91, 125, 255, 0.28), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(43, 199, 153, 0.18), transparent 20%),
+          linear-gradient(180deg, #0f172a 0%, var(--bg) 40%, #09111c 100%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 28px 20px 52px;
+      }
+      .panel {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 27, 48, 0.9));
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: 0 18px 40px var(--shadow);
+        backdrop-filter: blur(10px);
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 22px;
+        margin-bottom: 18px;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 3.1rem);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        background: linear-gradient(135deg, #e2e8f0 0%, #bfdbfe 40%, #c4b5fd 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      button {
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 1), rgba(15, 23, 42, 1));
+        color: var(--text);
+        border-radius: 12px;
+        padding: 10px 14px;
+        font: inherit;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(96, 165, 250, 0.18);
+        border-color: rgba(96, 165, 250, 0.5);
+      }
+      button.primary {
+        background: linear-gradient(135deg, #7dd3fc, #a78bfa 50%, #c084fc);
+        color: #06121f;
+        font-weight: 800;
+        border-color: transparent;
+        box-shadow: 0 10px 28px rgba(125, 211, 252, 0.28);
+      }
+      .stepper {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 8px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+      }
+      .stepper button {
+        width: 33px;
+        height: 33px;
+        padding: 0;
+        border-radius: 10px;
+      }
+      .stepper .value {
+        min-width: 28px;
+        text-align: center;
+        font-weight: 800;
+        color: #f8fbff;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 20px;
+      }
+      .section {
+        padding: 20px;
+      }
+      .section h2 {
+        margin: 0 0 18px;
+        font-size: 1.15rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #dfeafc;
+      }
+      form.deck-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      input[type="text"] {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 12px;
+        background: rgba(10, 17, 30, 0.82);
+        color: var(--text);
+        padding: 12px 14px;
+        font: inherit;
+        box-shadow: inset 0 1px 1px rgba(255,255,255,.04);
+      }
+      input[type="text"]:focus {
+        outline: none;
+        border-color: rgba(125, 211, 252, 0.8);
+        box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+      }
+      .color-picker {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .color-chip {
+        min-width: 46px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(255,255,255,0.02);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #dfeafc;
+      }
+      .color-chip.active {
+        border-color: transparent;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 8px 20px rgba(59,130,246,0.18);
+      }
+      .color-chip.W.active { background: linear-gradient(135deg, #f8fafc, #dbeafe); color: #0f172a; }
+      .color-chip.U.active { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: #eff6ff; }
+      .color-chip.B.active { background: linear-gradient(135deg, #1f2937, #111827); color: #f3f4f6; }
+      .color-chip.R.active { background: linear-gradient(135deg, #f87171, #dc2626); color: #fff1f2; }
+      .color-chip.G.active { background: linear-gradient(135deg, #4ade80, #16a34a); color: #ecfdf5; }
+      .color-chip.C.active { background: linear-gradient(135deg, #d1d5db, #9ca3af); color: #111827; }
+      .deck-list {
+        display: grid;
+        gap: 12px;
+      }
+      .deck-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.72));
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 14px;
+        padding: 12px 14px;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+      .deck-item.excluded {
+        opacity: 0.5;
+      }
+      .deck-main {
+        min-width: 0;
+      }
+      .deck-name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #f8fbff;
+      }
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 7px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 25px;
+        padding: 0 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #fff;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+      }
+      .badge.W { background: linear-gradient(135deg, #f8fafc, #dbeafe); color: #111827; }
+      .badge.U { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+      .badge.B { background: linear-gradient(135deg, #475569, #0f172a); }
+      .badge.R { background: linear-gradient(135deg, #f87171, #dc2626); }
+      .badge.G { background: linear-gradient(135deg, #4ade80, #16a34a); }
+      .badge.C { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; }
+      .deck-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tiny {
+        padding: 7px 10px;
+        font-size: 0.84rem;
+        border-radius: 9px;
+      }
+      .danger {
+        border-color: rgba(252, 165, 165, 0.4);
+        color: var(--danger);
+      }
+      .results {
+        display: grid;
+        gap: 12px;
+      }
+      .result-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.74));
+        padding: 12px 14px;
+      }
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+        color: #f1f5f9;
+      }
+      .muted { color: var(--muted); }
+      .empty {
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        color: var(--muted);
+        text-align: center;
+        background: rgba(15, 23, 42, 0.3);
+      }
+      @media (max-width: 780px) {
+        .layout { grid-template-columns: 1fr; }
+        form.deck-form { grid-template-columns: 1fr; }
+        header { flex-direction: column; align-items: flex-start; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-	<script>
-(function(){
-  const DECKS_KEY = 'mana-roll.decks';
-  const ROLLS_KEY = 'mana-roll.rolls';
-  const origFetch = window.fetch && window.fetch.bind(window);
-  function safeParse(raw, fallback) { try { return JSON.parse(raw); } catch (e) { return fallback; } }
-  async function readRequestBody(input, init) {
-    if (init && init.body) {
-      if (typeof init.body === 'string') return init.body;
-      try { if (init.body instanceof FormData) return null; } catch (e) {}
-    }
-    if (input instanceof Request) {
-      try { return await input.clone().text(); } catch (e) { return null; }
-    }
-    return null;
-  }
+    <div class="page">
+      <header class="panel">
+        <h1>Mana Roll</h1>
+        <div class="toolbar">
+          <div class="stepper" aria-label="Decks to roll for">
+            <button type="button" id="decrease-count" aria-label="Decrease roll count">−</button>
+            <span id="roll-count" class="value">4</span>
+            <button type="button" id="increase-count" aria-label="Increase roll count">+</button>
+          </div>
+          <button type="button" id="roll-button" class="primary">Roll today</button>
+        </div>
+      </header>
 
-  function loadDecks() { try { const raw = localStorage.getItem(DECKS_KEY); if (raw) return JSON.parse(raw); } catch (e) {} return []; }
-  function saveDecks(decks) { try { localStorage.setItem(DECKS_KEY, JSON.stringify(decks)); } catch (e) {} }
-  function loadRolls() { try { const raw = localStorage.getItem(ROLLS_KEY); if (raw) return JSON.parse(raw); } catch (e) {} return {}; }
-  function saveRolls(rolls) { try { localStorage.setItem(ROLLS_KEY, JSON.stringify(rolls)); } catch (e) {} }
+      <div class="layout">
+        <main class="panel section">
+          <h2>Decks</h2>
+          <form class="deck-form" id="deck-form">
+            <input id="deck-name" type="text" placeholder="Deck name" maxlength="80" />
+            <button type="submit">Add deck</button>
+          </form>
+          <div class="color-picker" id="color-picker" aria-label="Choose deck colors"></div>
+          <div id="deck-list" class="deck-list"></div>
+        </main>
 
-  if (!origFetch) return;
-  window.fetch = async function(input, init) {
-    try {
-      const reqUrl = (typeof input === 'string') ? input : input.url;
-      const url = new URL(reqUrl, location.href);
-      const pathname = url.pathname || '';
-      const method = (init && init.method) || (input && input.method) || 'GET';
-      const m = method.toUpperCase();
-      const lastSeg = pathname.split('/').pop();
+        <aside class="panel section">
+          <h2>Today's results</h2>
+          <div id="results" class="results"></div>
+        </aside>
+      </div>
+    </div>
 
-      // Intercept API paths and the two JSON files used by the app.
-      if (pathname.includes('/api/') || lastSeg === 'decks.json' || lastSeg === 'rolls.json') {
-        // Serve decks.json/rolls.json from localStorage (or empty defaults).
-        if (lastSeg === 'decks.json' && m === 'GET') {
-          return new Response(JSON.stringify(loadDecks()), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
-        if (lastSeg === 'rolls.json' && m === 'GET') {
-          return new Response(JSON.stringify(loadRolls()), { status: 200, headers: { 'Content-Type': 'application/json' } });
-        }
+    <script>
+      const STORAGE_KEYS = {
+        decks: 'mana-roll.decks',
+        rolls: 'mana-roll.rolls',
+        count: 'mana-roll-target-count',
+        excluded: 'mana-roll-excluded-decks',
+      };
+      const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
+      const COLOR_ORDER = { C: 0, W: 1, U: 2, B: 3, R: 4, G: 5 };
+      const DEFAULT_ROLL_COUNT = 4;
+      const MAX_ROLL_COUNT = 40;
 
-        // /api/decks
-        if (pathname.endsWith('/api/decks') || pathname.endsWith('/api/decks/')) {
-          if (m === 'GET') {
-            return new Response(JSON.stringify(loadDecks()), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-          if (m === 'POST') {
-            const txt = await readRequestBody(input, init);
-            const payload = txt ? safeParse(txt, {}) : {};
-            const decks = loadDecks();
-            const nextId = (decks.length ? Math.max(...decks.map((d) => Number(d.id) || 0)) : 0) + 1;
-            if (!payload.id) payload.id = nextId;
-            decks.push(payload);
-            saveDecks(decks);
-            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-        }
+      const state = {
+        decks: [],
+        excluded: [],
+        rollCount: DEFAULT_ROLL_COUNT,
+        results: [],
+      };
 
-        // /api/decks/:id
-        const decksMatch = pathname.match(/\/api\/decks\/([^\/]+)\/?$/);
-        if (decksMatch) {
-          const idStr = decksMatch[1];
-          if (m === 'PUT') {
-            const txt = await readRequestBody(input, init);
-            const payload = txt ? safeParse(txt, {}) : {};
-            const decks = loadDecks();
-            const id = Number(idStr);
-            let updated = false;
-            for (let i = 0; i < decks.length; i += 1) {
-              if (Number(decks[i].id) === id) {
-                decks[i].name = payload.name;
-                updated = true;
-                break;
-              }
-            }
-            saveDecks(decks);
-            if (!updated) return new Response(JSON.stringify({ error: 'Deck not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-          if (m === 'DELETE') {
-            let decks = loadDecks();
-            if (idStr === 'undefined' || idStr === '') {
-              if (decks.length) decks.pop();
-            } else {
-              const id = Number(idStr);
-              decks = decks.filter((d) => Number(d.id) !== id);
-            }
-            saveDecks(decks);
-            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-        }
+      function clampRollCount(value) {
+        if (!Number.isFinite(value)) return DEFAULT_ROLL_COUNT;
+        return Math.max(1, Math.min(MAX_ROLL_COUNT, Math.floor(value)));
+      }
 
-        // /api/roll-sessions/:day
-        const rollsMatch = pathname.match(/\/api\/roll-sessions\/([^\/]+)\/?$/);
-        if (rollsMatch) {
-          const day = rollsMatch[1];
-          if (m === 'GET') {
-            const rolls = loadRolls();
-            return new Response(JSON.stringify(rolls[day] || { results: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
-          if (m === 'PUT') {
-            const txt = await readRequestBody(input, init);
-            const payload = txt ? safeParse(txt, {}) : {};
-            const rolls = loadRolls();
-            rolls[day] = payload;
-            saveRolls(rolls);
-            return new Response(JSON.stringify({ success: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-          }
+      function normalizeColors(colors) {
+        if (!Array.isArray(colors)) return [];
+        const unique = [...new Set(colors.filter((color) => COLORS.includes(color)))];
+        if (unique.includes('C')) return ['C'];
+        return unique.sort((left, right) => (COLOR_ORDER[left] || 0) - (COLOR_ORDER[right] || 0));
+      }
+
+      function colorKey(colors) {
+        return normalizeColors(colors).join(',');
+      }
+
+      function loadJSON(key, fallback) {
+        try {
+          const raw = window.localStorage.getItem(key);
+          if (!raw) return fallback;
+          const parsed = JSON.parse(raw);
+          return parsed ?? fallback;
+        } catch (_error) {
+          return fallback;
         }
       }
 
-      // Not an intercepted path — delegate to original fetch.
-      return origFetch(input, init);
-    } catch (e) {
-      try { return origFetch(input, init); } catch (e2) { return Promise.reject(e2); }
-    }
-  };
-})();
-</script>
-	<script src="./assets/script.js?v=2"></script>
-    <script src="./assets/enhancements.js?v=2"></script>
-  <script data-pplx-inline-edit>
-(function () {
-  if (window === window.top) return;
-
-  const allowedParentOrigins = ["https://www.perplexity.ai","https://perplexity.ai","https://testing.perplexity.ai","https://staging.perplexity.ai","https://*.preview.i.perplexity.ai","http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"];
-  const MAX_FONT_BYTES = 500 * 1024;
-  const MAX_TOTAL_FONT_BYTES = 2 * 1024 * 1024;
-  let scrollForwarding = false;
-  let scrollRaf = 0;
-  let trustedTopOrigin = null;
-
-  // Allow entries like "https://*.preview.i.perplexity.ai" — the wildcard
-  // matches a single DNS label (no dots), so "https://*.foo" cannot stretch
-  // across multiple labels.
-  function matchesAllowedOrigin(origin) {
-    if (!origin) return false;
-    for (const entry of allowedParentOrigins) {
-      if (!entry.includes("*")) {
-        if (entry === origin) return true;
-        continue;
-      }
-      const pattern = new RegExp(
-        "^" +
-          entry.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^.]+") +
-          "$",
-      );
-      if (pattern.test(origin)) return true;
-    }
-    return false;
-  }
-
-  // Trust decision: when the sender is same-origin-visible (event.origin is a
-  // real origin like https://www.perplexity.ai) we trust event.origin directly.
-  // When event.origin is "null" (opaque broker srcdoc), we fall back to the
-  // broker's stamped `parentOrigin` to identify the top window. The fallback
-  // is claim-only — we rely on the browser's native `targetOrigin` enforcement
-  // on the response path (see postToTrustedTop) to ensure replies can't be
-  // delivered to anyone but the actual top window of that claimed origin.
-  function getTrustedParentOrigin(event) {
-    const forwardedParentOrigin =
-      typeof event.data.parentOrigin === "string" ? event.data.parentOrigin : null;
-    const parentOrigin = event.origin === "null" ? forwardedParentOrigin : event.origin;
-    return matchesAllowedOrigin(parentOrigin) ? parentOrigin : null;
-  }
-
-  // All responses go to window.top with targetOrigin = the allowlisted origin.
-  // An attacker that iframes us inside their own null-origin broker can claim
-  // any parentOrigin they like, but the browser will drop the reply whenever
-  // the real top's origin doesn't match — so the screenshot never leaves.
-  function postToTrustedTop(message) {
-    if (!trustedTopOrigin) return;
-    try {
-      window.top.postMessage(message, trustedTopOrigin);
-    } catch (_error) {}
-  }
-
-  function inlineAll(original, clone) {
-    if (original.nodeType !== 1 || clone.nodeType !== 1) return;
-
-    try {
-      const computedStyle = getComputedStyle(original);
-      // cssText on a computed style is the serialized declaration in modern
-      // Chromium/Safari — a single read beats enumerating ~400 longhand
-      // properties. Firefox returns "" here, so we fall back on empty.
-      const serialized = computedStyle.cssText;
-      if (serialized) {
-        clone.style.cssText = serialized;
-      } else {
-        const parts = new Array(computedStyle.length);
-        for (let index = 0; index < computedStyle.length; index += 1) {
-          const property = computedStyle[index];
-          parts[index] = `${property}:${computedStyle.getPropertyValue(property)};`;
+      function saveJSON(key, value) {
+        try {
+          window.localStorage.setItem(key, JSON.stringify(value));
+        } catch (_error) {
+          // Browser storage may be unavailable. Ignore gracefully.
         }
-        clone.style.cssText = parts.join("");
       }
-    } catch (_error) {}
 
-    const originalChildren = original.children;
-    const clonedChildren = clone.children;
-    for (
-      let index = 0;
-      index < originalChildren.length && index < clonedChildren.length;
-      index += 1
-    ) {
-      inlineAll(originalChildren[index], clonedChildren[index]);
-    }
-  }
+      function getDecks() {
+        state.decks = Array.isArray(loadJSON(STORAGE_KEYS.decks, [])) ? loadJSON(STORAGE_KEYS.decks, []) : [];
+        return state.decks;
+      }
 
-  function extractFontUrl(srcValue) {
-    const matches = [
-      ...srcValue.matchAll(
-        /url\(["']?([^"')]+)["']?\)(?:\s*format\(["']?([^"')]+)["']?\))?/gi,
-      ),
-    ];
-    if (matches.length === 0) return null;
-    const woff2 = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff2"));
-    if (woff2) return woff2[1];
-    const woff = matches.find((m) => m[2] && m[2].toLowerCase().includes("woff"));
-    if (woff) return woff[1];
-    return matches[0][1];
-  }
+      function saveDecks() {
+        saveJSON(STORAGE_KEYS.decks, state.decks);
+      }
 
-  // Cache resolved font URL -> data URI across captures. Fonts on a page
-  // essentially never change, and a batch run emits multiple captures back to
-  // back — without this we'd refetch + re-base64 every time.
-  const fontDataUriCache = new Map();
-  const SRC_DECLARATION_RE = /src\s*:\s*[^;}]+/i;
+      function getRolls() {
+        return loadJSON(STORAGE_KEYS.rolls, {});
+      }
 
-  async function fetchAsDataUri(url) {
-    if (fontDataUriCache.has(url)) return fontDataUriCache.get(url);
-    let dataUri = null;
-    try {
-      const response = await fetch(url, { mode: "cors", credentials: "omit" });
-      if (response.ok) {
-        const blob = await response.blob();
-        if (blob.size <= MAX_FONT_BYTES) {
-          dataUri = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () =>
-              resolve(typeof reader.result === "string" ? reader.result : null);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
+      function saveRolls(rolls) {
+        saveJSON(STORAGE_KEYS.rolls, rolls);
+      }
+
+      function getExcludedIds() {
+        const parsed = loadJSON(STORAGE_KEYS.excluded, []);
+        state.excluded = Array.isArray(parsed) ? parsed.filter((value) => Number.isFinite(value)) : [];
+        return state.excluded;
+      }
+
+      function saveExcludedIds() {
+        saveJSON(STORAGE_KEYS.excluded, state.excluded);
+      }
+
+      function getTodayKey() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+
+      function getRollCount() {
+        const value = Number(window.localStorage.getItem(STORAGE_KEYS.count));
+        state.rollCount = clampRollCount(Number.isFinite(value) ? value : DEFAULT_ROLL_COUNT);
+        return state.rollCount;
+      }
+
+      function saveRollCount() {
+        window.localStorage.setItem(STORAGE_KEYS.count, String(state.rollCount));
+      }
+
+      function getEligibleDecks() {
+        return getDecks().filter((deck) => !state.excluded.includes(deck.id));
+      }
+
+      function randomDiceRoll() {
+        const dice = [];
+        for (let index = 0; index < 5; index += 1) {
+          dice.push(COLORS[Math.floor(Math.random() * COLORS.length)]);
+        }
+        return dice;
+      }
+
+      function matchedColorsForDice(dice) {
+        const filtered = dice.filter((value) => value !== 'C');
+        if (filtered.length === 0) return ['C'];
+        return normalizeColors(filtered);
+      }
+
+      function createDeckRecord(name, colors) {
+        return {
+          id: Date.now() + Math.random(),
+          name: name.trim(),
+          colors: normalizeColors(colors).length ? normalizeColors(colors) : ['C'],
+        };
+      }
+
+      function generateRollResults(eligibleDecks, count) {
+        const pool = [...eligibleDecks];
+        const used = new Set();
+        const results = [];
+
+        while (results.length < count && pool.length > 0) {
+          const candidate = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+          if (!candidate) break;
+          if (!used.has(candidate.id)) {
+            used.add(candidate.id);
+            results.push({
+              deckId: candidate.id,
+              deckName: candidate.name,
+              colors: candidate.colors,
+              dice: randomDiceRoll(),
+            });
+          }
+        }
+
+        if (results.length >= count) return results.slice(0, count);
+
+        let attempts = 0;
+        while (results.length < count && attempts < 2000) {
+          attempts += 1;
+          const dice = randomDiceRoll();
+          const matched = matchedColorsForDice(dice);
+          const key = colorKey(matched);
+          const deck = eligibleDecks.find((candidate) => !used.has(candidate.id) && colorKey(candidate.colors) === key);
+          if (deck) {
+            used.add(deck.id);
+            results.push({
+              deckId: deck.id,
+              deckName: deck.name,
+              colors: matched,
+              dice,
+            });
+          }
+        }
+
+        if (results.length < count) {
+          const remaining = eligibleDecks.filter((deck) => !used.has(deck.id));
+          remaining.slice(0, count - results.length).forEach((deck) => {
+            results.push({
+              deckId: deck.id,
+              deckName: deck.name,
+              colors: deck.colors,
+              dice: randomDiceRoll(),
+            });
           });
         }
+
+        return results.slice(0, count);
       }
-    } catch (_error) {
-      dataUri = null;
-    }
-    fontDataUriCache.set(url, dataUri);
-    return dataUri;
-  }
 
-  function collectFontFaceRuleTexts() {
-    const rules = [];
-    for (const sheet of document.styleSheets) {
-      let cssRules;
-      try {
-        cssRules = sheet.cssRules;
-      } catch (_error) {
-        continue;
+      function renderColorPicker() {
+        const picker = document.getElementById('color-picker');
+        picker.innerHTML = '';
+        const selected = new Set(document.getElementById('deck-name').dataset.colors ? JSON.parse(document.getElementById('deck-name').dataset.colors) : []);
+
+        COLORS.forEach((color) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = `color-chip ${color} ${selected.has(color) ? 'active' : ''}`;
+          button.textContent = color;
+          button.addEventListener('click', () => {
+            const current = JSON.parse(document.getElementById('deck-name').dataset.colors || '[]');
+            const exists = current.includes(color);
+            const next = exists ? current.filter((value) => value !== color) : [...current, color];
+            document.getElementById('deck-name').dataset.colors = JSON.stringify(next);
+            renderColorPicker();
+          });
+          picker.appendChild(button);
+        });
       }
-      if (!cssRules) continue;
-      for (const rule of cssRules) {
-        const cssText = rule.cssText || "";
-        if (cssText.startsWith("@font-face")) rules.push(cssText);
+
+      function renderDecks() {
+        const list = document.getElementById('deck-list');
+        const decks = getDecks();
+        list.innerHTML = '';
+
+        if (!decks.length) {
+          list.innerHTML = '<div class="empty">Add a deck to get started.</div>';
+          return;
+        }
+
+        decks.forEach((deck) => {
+          const item = document.createElement('div');
+          item.className = `deck-item ${state.excluded.includes(deck.id) ? 'excluded' : ''}`;
+
+          const main = document.createElement('div');
+          main.className = 'deck-main';
+
+          const title = document.createElement('div');
+          title.className = 'deck-name';
+          title.textContent = deck.name;
+          main.appendChild(title);
+
+          const badges = document.createElement('div');
+          badges.className = 'badge-row';
+          const colors = normalizeColors(deck.colors);
+          if (!colors.length) {
+            const badge = document.createElement('span');
+            badge.className = 'badge C';
+            badge.textContent = 'C';
+            badges.appendChild(badge);
+          } else {
+            colors.forEach((color) => {
+              const badge = document.createElement('span');
+              badge.className = `badge ${color}`;
+              badge.textContent = color;
+              badges.appendChild(badge);
+            });
+          }
+          main.appendChild(badges);
+
+          const actions = document.createElement('div');
+          actions.className = 'deck-actions';
+
+          const toggleExclude = document.createElement('button');
+          toggleExclude.type = 'button';
+          toggleExclude.className = 'tiny';
+          toggleExclude.textContent = state.excluded.includes(deck.id) ? 'Include' : 'Exclude';
+          toggleExclude.addEventListener('click', () => {
+            if (state.excluded.includes(deck.id)) {
+              state.excluded = state.excluded.filter((value) => value !== deck.id);
+            } else {
+              state.excluded.push(deck.id);
+            }
+            saveExcludedIds();
+            renderDecks();
+            renderResults();
+          });
+
+          const rename = document.createElement('button');
+          rename.type = 'button';
+          rename.className = 'tiny';
+          rename.textContent = 'Rename';
+          rename.addEventListener('click', () => {
+            const nextName = window.prompt('New deck name', deck.name);
+            if (nextName === null) return;
+            const trimmed = nextName.trim();
+            if (!trimmed) return;
+            deck.name = trimmed;
+            saveDecks();
+            renderDecks();
+          });
+
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'tiny danger';
+          remove.textContent = 'Delete';
+          remove.addEventListener('click', () => {
+            if (!window.confirm(`Delete ${deck.name}?`)) return;
+            state.decks = state.decks.filter((candidate) => candidate.id !== deck.id);
+            state.excluded = state.excluded.filter((value) => value !== deck.id);
+            saveDecks();
+            saveExcludedIds();
+            renderDecks();
+            renderResults();
+          });
+
+          actions.appendChild(toggleExclude);
+          actions.appendChild(rename);
+          actions.appendChild(remove);
+          item.appendChild(main);
+          item.appendChild(actions);
+          list.appendChild(item);
+        });
       }
-    }
-    return rules;
-  }
 
-  async function buildInlinedFontCss() {
-    const ruleTexts = collectFontFaceRuleTexts();
-    if (ruleTexts.length === 0) return null;
+      function renderResults() {
+        const resultsEl = document.getElementById('results');
+        const rolls = getRolls();
+        const todayKey = getTodayKey();
+        const todayResults = Array.isArray(rolls[todayKey]?.results) ? rolls[todayKey].results : [];
+        state.results = todayResults;
 
-    const resolved = ruleTexts.map((cssText) => {
-      if (!SRC_DECLARATION_RE.test(cssText)) return null;
-      const srcMatch = cssText.match(/src\s*:\s*([^;}]+)[;}]/i);
-      if (!srcMatch) return null;
-      const url = extractFontUrl(srcMatch[1]);
-      if (!url) return null;
-      try {
-        return { cssText, url: new URL(url, document.baseURI).href };
-      } catch (_error) {
-        return null;
+        if (!todayResults.length) {
+          resultsEl.innerHTML = '<div class="empty">No rolls yet. Hit “Roll today” to generate a result.</div>';
+          return;
+        }
+
+        resultsEl.innerHTML = '';
+        todayResults.forEach((result, index) => {
+          const card = document.createElement('div');
+          card.className = 'result-card';
+          const header = document.createElement('div');
+          header.className = 'result-header';
+          const label = document.createElement('strong');
+          label.textContent = `Pick ${index + 1}`;
+          const deck = document.createElement('span');
+          deck.textContent = result.deckName || 'No match';
+          header.appendChild(label);
+          header.appendChild(deck);
+
+          const dice = document.createElement('div');
+          dice.className = 'muted';
+          dice.textContent = result.dice ? `Dice: ${result.dice.join(' ')}` : 'Dice: —';
+
+          const match = document.createElement('div');
+          match.className = 'muted';
+          match.textContent = `Colors: ${Array.isArray(result.colors) && result.colors.length ? result.colors.join(' ') : '—'}`;
+
+          card.appendChild(header);
+          card.appendChild(dice);
+          card.appendChild(match);
+          resultsEl.appendChild(card);
+        });
       }
-    });
 
-    const dataUris = await Promise.all(
-      resolved.map((entry) => (entry ? fetchAsDataUri(entry.url) : Promise.resolve(null))),
-    );
-
-    const inlined = [];
-    let totalBytes = 0;
-    for (let index = 0; index < resolved.length; index += 1) {
-      const entry = resolved[index];
-      const dataUri = dataUris[index];
-      if (!entry || !dataUri) continue;
-      const approxBytes = dataUri.length * 0.75;
-      if (totalBytes + approxBytes > MAX_TOTAL_FONT_BYTES) break;
-      totalBytes += approxBytes;
-      inlined.push(entry.cssText.replace(SRC_DECLARATION_RE, `src: url("${dataUri}")`));
-    }
-    return inlined.length > 0 ? inlined.join("\n") : null;
-  }
-
-  function stripExternal(clone) {
-    const images = clone.querySelectorAll("img");
-    for (let index = 0; index < images.length; index += 1) {
-      const src = images[index].getAttribute("src");
-      if (src && !src.startsWith("data:")) images[index].removeAttribute("src");
-    }
-
-    const elements = clone.querySelectorAll("*");
-    for (let index = 0; index < elements.length; index += 1) {
-      const style = elements[index].style.cssText;
-      if (style && style.includes("url(")) {
-        elements[index].style.cssText = style.replace(
-          /url\(["']?(?!data:)[^)"']*["']?\)/gi,
-          "none",
-        );
+      function syncRollCount() {
+        const count = getRollCount();
+        document.getElementById('roll-count').textContent = String(count);
+        document.getElementById('decrease-count').disabled = count <= 1;
+        document.getElementById('increase-count').disabled = count >= MAX_ROLL_COUNT;
       }
-    }
-  }
 
-  function emitScroll() {
-    scrollRaf = 0;
-    if (!scrollForwarding) return;
-    postToTrustedTop({
-      type: "INLINE_EDIT_SCROLL",
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-    });
-  }
+      function rollToday() {
+        const eligibleDecks = getEligibleDecks();
+        if (!eligibleDecks.length) {
+          window.alert('Add a deck or include some decks before rolling.');
+          return;
+        }
+        const count = Math.min(state.rollCount, eligibleDecks.length);
+        const results = generateRollResults(eligibleDecks, count);
+        const rolls = getRolls();
+        const todayKey = getTodayKey();
+        rolls[todayKey] = { results };
+        saveRolls(rolls);
+        renderResults();
+      }
 
-  window.addEventListener(
-    "scroll",
-    function () {
-      if (!scrollForwarding || scrollRaf) return;
-      scrollRaf = requestAnimationFrame(emitScroll);
-    },
-    { passive: true, capture: true },
-  );
-
-  async function handleCaptureRequest(event) {
-    const requestId = event.data.requestId;
-    const scrollX = window.scrollX;
-    const scrollY = window.scrollY;
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    function postResult(dataUrl) {
-      postToTrustedTop({
-        type: "INLINE_EDIT_SCREENSHOT_RESULT",
-        requestId,
-        dataUrl,
-        scrollX,
-        scrollY,
+      document.getElementById('deck-form').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const input = document.getElementById('deck-name');
+        const raw = input.value.trim();
+        const chosenColors = JSON.parse(input.dataset.colors || '[]');
+        if (!raw) {
+          input.focus();
+          return;
+        }
+        const deck = createDeckRecord(raw, chosenColors);
+        state.decks = getDecks();
+        state.decks.push(deck);
+        saveDecks();
+        input.value = '';
+        input.dataset.colors = '[]';
+        renderColorPicker();
+        renderDecks();
       });
-    }
 
-    try {
-      // Wait for any pending web fonts to resolve so both inline metrics and
-      // the @font-face inlining below see the same loaded faces.
-      if (document.fonts && document.fonts.ready) {
-        try {
-          await document.fonts.ready;
-        } catch (_error) {}
-      }
+      document.getElementById('roll-button').addEventListener('click', rollToday);
+      document.getElementById('decrease-count').addEventListener('click', () => {
+        state.rollCount = clampRollCount(getRollCount() - 1);
+        saveRollCount();
+        syncRollCount();
+      });
+      document.getElementById('increase-count').addEventListener('click', () => {
+        state.rollCount = clampRollCount(getRollCount() + 1);
+        saveRollCount();
+        syncRollCount();
+      });
 
-      const clone = document.documentElement.cloneNode(true);
-      inlineAll(document.documentElement, clone);
-
-      const removedNodes = clone.querySelectorAll("script,link[rel=\"stylesheet\"],style");
-      for (let index = 0; index < removedNodes.length; index += 1) {
-        removedNodes[index].remove();
-      }
-
-      stripExternal(clone);
-
-      // Re-embed web fonts as data-URI @font-face rules so the SVG rasterizer
-      // can resolve them — external font URLs aren't fetched during
-      // foreignObject rendering, which would otherwise force a fallback face
-      // and change text metrics.
-      const inlinedFontCss = await buildInlinedFontCss();
-      if (inlinedFontCss) {
-        const styleEl = document.createElement("style");
-        styleEl.textContent = inlinedFontCss;
-        const head = clone.querySelector("head");
-        if (head) head.appendChild(styleEl);
-        else clone.insertBefore(styleEl, clone.firstChild);
-      }
-
-      const html = new XMLSerializer().serializeToString(clone);
-      const svg =
-        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-        '<foreignObject width="100%" height="100%">' +
-        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;overflow:hidden">` +
-        `<div style="position:relative;left:-${scrollX}px;top:-${scrollY}px">` +
-        html +
-        "</div></div></foreignObject></svg>";
-      const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-      const image = new Image();
-      image.onload = function () {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext("2d").drawImage(image, 0, 0);
-        postResult(canvas.toDataURL("image/png"));
-      };
-      image.onerror = function () {
-        postResult(null);
-      };
-      image.src = svgUrl;
-    } catch (_error) {
-      postResult(null);
-    }
-  }
-
-  window.addEventListener("message", function (event) {
-    if (!event.data) return;
-    // Only accept messages from the direct parent frame. Blocks sibling /
-    // unrelated-window postMessage senders that could otherwise reach us.
-    if (event.source !== window.parent) return;
-
-    const trustedParentOrigin = getTrustedParentOrigin(event);
-    if (!trustedParentOrigin) return;
-    trustedTopOrigin = trustedParentOrigin;
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_START") {
-      scrollForwarding = true;
-      emitScroll();
-      return;
-    }
-
-    if (event.data.type === "INLINE_EDIT_SCROLL_STOP") {
-      scrollForwarding = false;
-      if (scrollRaf) cancelAnimationFrame(scrollRaf);
-      scrollRaf = 0;
-      return;
-    }
-
-    if (event.data.type !== "INLINE_EDIT_CAPTURE_REQUEST") return;
-
-    handleCaptureRequest(event);
-  });
-})();
-
-
-</script>
-
-</body>
+      document.getElementById('deck-name').dataset.colors = '[]';
+      renderColorPicker();
+      getExcludedIds();
+      getRollCount();
+      syncRollCount();
+      renderDecks();
+      renderResults();
+    </script>
+  </body>
 </html>
