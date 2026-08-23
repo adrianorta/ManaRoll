@@ -2,358 +2,738 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mana Roll — Daily MTG Deck Dice</title>
-    <meta name="description" content="Track decks and roll mana colors without any backend or network requests." />
+    <meta name="description" content="Roll five mana dice and let the color pie choose today's deck. No accounts, no backend — your decks stay in your browser." />
+    <meta name="theme-color" content="#0d0f14" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
       :root {
-        --bg: #0b1020;
-        --bg-2: #111827;
-        --panel: rgba(19, 28, 49, 0.82);
-        --panel-strong: rgba(22, 35, 62, 0.96);
-        --line: rgba(148, 163, 184, 0.28);
-        --text: #edf3ff;
-        --muted: #b9c7e4;
-        --accent: #7dd3fc;
-        --accent-2: #a78bfa;
-        --accent-3: #3b82f6;
-        --danger: #fca5a5;
-        --success: #86efac;
-        --shadow: rgba(8, 15, 30, 0.7);
-        --white: #f8fafc;
-        --blue: #60a5fa;
-        --blue-deep: #2563eb;
-        --black: #0f172a;
-        --red: #f87171;
-        --red-deep: #dc2626;
-        --green: #4ade80;
-        --green-deep: #16a34a;
-        --gold: #fbbf24;
-        --gold-deep: #d97706;
+        /* Surface + ink */
+        --ink: #0d0f14;
+        --ink-2: #12141c;
+        --panel: #161923;
+        --panel-2: #12141b;
+        --raised: #1b1f2b;
+        --line: rgba(201, 162, 75, 0.16);
+        --line-soft: rgba(233, 227, 212, 0.08);
+
+        --parchment: #e9e3d4;
+        --parchment-dim: #cfc7b4;
+        --muted: #9a9384;
+        --faint: #6f6a5f;
+
+        /* Arcane gold accent */
+        --gold: #c9a24b;
+        --gold-bright: #e6c877;
+        --gold-deep: #a9812f;
+        --gold-glow: rgba(201, 162, 75, 0.35);
+
+        --danger: #d9695a;
+        --shadow: rgba(0, 0, 0, 0.55);
+
+        --serif: "EB Garamond", Georgia, "Times New Roman", serif;
+        --display: "Cinzel", "EB Garamond", Georgia, serif;
+        --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+        --r-lg: 18px;
+        --r-md: 13px;
+        --r-sm: 10px;
       }
+
       * { box-sizing: border-box; }
-      html {
-        background: #0b1020;
-      }
+
+      html { background: var(--ink); }
+
       body {
         margin: 0;
-        font-family: "Segoe UI", Inter, sans-serif;
-        background:
-          radial-gradient(circle at top, rgba(91, 125, 255, 0.28), transparent 28%),
-          radial-gradient(circle at bottom right, rgba(43, 199, 153, 0.18), transparent 20%),
-          linear-gradient(180deg, #0f172a 0%, var(--bg) 40%, #09111c 100%);
-        color: var(--text);
         min-height: 100vh;
+        color: var(--parchment);
+        font-family: var(--serif);
+        font-size: 18px;
+        line-height: 1.5;
+        background:
+          radial-gradient(1100px 620px at 50% -14%, rgba(201, 162, 75, 0.13), transparent 62%),
+          radial-gradient(900px 520px at 8% 108%, rgba(74, 159, 212, 0.07), transparent 60%),
+          radial-gradient(760px 480px at 96% 112%, rgba(224, 85, 63, 0.06), transparent 58%),
+          linear-gradient(180deg, #10131b 0%, var(--ink) 46%, #090b11 100%);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
       }
+
+      /* faint parchment grain */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.035;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+
       .page {
-        max-width: 1100px;
+        position: relative;
+        z-index: 1;
+        max-width: 1120px;
         margin: 0 auto;
-        padding: 28px 20px 52px;
+        padding: clamp(20px, 4vw, 40px) clamp(16px, 4vw, 28px) 72px;
       }
-      .panel {
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(17, 27, 48, 0.9));
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        box-shadow: 0 18px 40px var(--shadow);
-        backdrop-filter: blur(10px);
-      }
-      header {
+
+      /* ---------- Header ---------- */
+      .masthead {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-        padding: 20px 22px;
-        margin-bottom: 18px;
+        align-items: flex-end;
+        gap: 24px;
+        flex-wrap: wrap;
+        padding-bottom: 20px;
+        margin-bottom: 26px;
+        border-bottom: 1px solid var(--line);
+        position: relative;
       }
+      .masthead::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        bottom: -1px;
+        width: 128px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--gold-bright), transparent);
+      }
+      .brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+      .brand .sigil {
+        width: 52px;
+        height: 52px;
+        flex: 0 0 auto;
+        filter: drop-shadow(0 3px 8px rgba(201, 162, 75, 0.28));
+      }
+      .brand-text { min-width: 0; }
       h1 {
         margin: 0;
-        font-size: clamp(2.2rem, 4vw, 3.1rem);
-        letter-spacing: 0.06em;
+        font-family: var(--display);
+        font-weight: 800;
+        font-size: clamp(2rem, 5.2vw, 3.1rem);
+        line-height: 0.98;
+        letter-spacing: 0.09em;
         text-transform: uppercase;
-        background: linear-gradient(135deg, #e2e8f0 0%, #bfdbfe 40%, #c4b5fd 100%);
+        background: linear-gradient(180deg, #f4ecd6 0%, var(--gold-bright) 55%, var(--gold-deep) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
       }
-      .toolbar {
+      .tagline {
+        margin: 6px 0 0;
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 1rem;
+        color: var(--muted);
+        letter-spacing: 0.01em;
+      }
+      .today {
+        text-align: right;
+        font-family: var(--ui);
+        font-size: 0.78rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--faint);
+        white-space: nowrap;
+      }
+      .today b {
+        display: block;
+        margin-top: 4px;
+        color: var(--gold);
+        font-weight: 600;
+        letter-spacing: 0.14em;
+      }
+
+      /* ---------- Roll ritual bar ---------- */
+      .ritual {
         display: flex;
         align-items: center;
-        gap: 12px;
+        justify-content: space-between;
+        gap: 20px;
         flex-wrap: wrap;
+        padding: 18px 22px;
+        margin-bottom: 26px;
+        border-radius: var(--r-lg);
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(120% 160% at 100% 0%, rgba(201, 162, 75, 0.10), transparent 55%),
+          linear-gradient(180deg, var(--panel), var(--panel-2));
+        box-shadow: 0 16px 40px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
-      button {
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        background: linear-gradient(180deg, rgba(30, 41, 59, 1), rgba(15, 23, 42, 1));
-        color: var(--text);
-        border-radius: 12px;
-        padding: 10px 14px;
-        font: inherit;
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+      .ritual-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+      .field-label {
+        font-family: var(--ui);
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
       }
-      button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(96, 165, 250, 0.18);
-        border-color: rgba(96, 165, 250, 0.5);
-      }
-      button.primary {
-        background: linear-gradient(135deg, #7dd3fc, #a78bfa 50%, #c084fc);
-        color: #06121f;
-        font-weight: 800;
-        border-color: transparent;
-        box-shadow: 0 10px 28px rgba(125, 211, 252, 0.28);
-      }
+
       .stepper {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 7px 8px;
-        border-radius: 12px;
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(148, 163, 184, 0.25);
+        gap: 4px;
+        padding: 5px;
+        border-radius: 999px;
+        background: var(--ink-2);
+        border: 1px solid var(--line-soft);
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
       }
       .stepper button {
-        width: 33px;
-        height: 33px;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
         padding: 0;
-        border-radius: 10px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--parchment-dim);
+        font-family: var(--ui);
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, transform 0.1s;
       }
+      .stepper button:hover:not(:disabled) { background: rgba(201, 162, 75, 0.16); color: var(--gold-bright); }
+      .stepper button:active:not(:disabled) { transform: scale(0.9); }
+      .stepper button:disabled { opacity: 0.28; cursor: not-allowed; }
       .stepper .value {
-        min-width: 28px;
+        min-width: 34px;
         text-align: center;
-        font-weight: 800;
-        color: #f8fbff;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 1.25rem;
+        color: var(--parchment);
       }
+
+      .roll-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 30px;
+        border: 1px solid var(--gold-deep);
+        border-radius: 999px;
+        cursor: pointer;
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 1.02rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #251a06;
+        background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 52%, var(--gold-deep) 100%);
+        box-shadow: 0 10px 26px var(--gold-glow), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(120, 80, 10, 0.35);
+        transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s, filter 0.16s;
+      }
+      .roll-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 36px var(--gold-glow), inset 0 1px 0 rgba(255, 255, 255, 0.6); filter: brightness(1.04); }
+      .roll-btn:active { transform: translateY(0) scale(0.985); }
+      .roll-btn .die-ico { width: 22px; height: 22px; }
+      .roll-btn.rolling { pointer-events: none; }
+      .roll-btn.rolling .die-ico { animation: tumble 0.5s linear infinite; }
+      @keyframes tumble {
+        0% { transform: rotate(0) scale(1); }
+        50% { transform: rotate(180deg) scale(0.82); }
+        100% { transform: rotate(360deg) scale(1); }
+      }
+
+      /* ---------- Layout ---------- */
       .layout {
         display: grid;
-        grid-template-columns: 1.2fr 0.8fr;
-        gap: 20px;
+        grid-template-columns: 1.25fr 0.9fr;
+        gap: 24px;
+        align-items: start;
       }
-      .section {
-        padding: 20px;
+      .panel {
+        border-radius: var(--r-lg);
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(233, 227, 212, 0.015), transparent 30%),
+          linear-gradient(180deg, var(--panel), var(--panel-2));
+        box-shadow: 0 18px 44px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
-      .section h2 {
+      .panel-body { padding: clamp(18px, 2.6vw, 26px); }
+
+      .eyebrow {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
         margin: 0 0 18px;
-        font-size: 1.15rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #dfeafc;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line-soft);
       }
-      form.deck-form {
+      .eyebrow h2 {
+        margin: 0;
+        font-family: var(--display);
+        font-weight: 600;
+        font-size: 1.02rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--parchment);
+      }
+      .eyebrow .count {
+        font-family: var(--ui);
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        color: var(--gold);
+        padding: 2px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+      }
+
+      /* ---------- Add deck form ---------- */
+      .deck-form {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
-        margin-bottom: 20px;
+        gap: 10px;
+        margin-bottom: 14px;
       }
       input[type="text"] {
         width: 100%;
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        border-radius: 12px;
-        background: rgba(10, 17, 30, 0.82);
-        color: var(--text);
-        padding: 12px 14px;
-        font: inherit;
-        box-shadow: inset 0 1px 1px rgba(255,255,255,.04);
+        padding: 12px 15px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--line-soft);
+        background: var(--ink-2);
+        color: var(--parchment);
+        font-family: var(--serif);
+        font-size: 1.05rem;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
+      input[type="text"]::placeholder { color: var(--faint); font-style: italic; }
       input[type="text"]:focus {
         outline: none;
-        border-color: rgba(125, 211, 252, 0.8);
-        box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.18);
+        border-color: var(--gold);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(201, 162, 75, 0.18);
+      }
+      .btn-add {
+        padding: 0 20px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, var(--raised), #14161f);
+        color: var(--gold-bright);
+        font-family: var(--ui);
+        font-weight: 600;
+        font-size: 0.92rem;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: border-color 0.15s, transform 0.12s, background 0.15s;
+      }
+      .btn-add:hover { border-color: var(--gold); transform: translateY(-1px); background: linear-gradient(180deg, #22262f, var(--raised)); }
+      .btn-add:active { transform: translateY(0); }
+
+      /* ---------- Color picker ---------- */
+      .picker-label {
+        font-family: var(--ui);
+        font-size: 0.68rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin: 6px 0 10px;
       }
       .color-picker {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
+        gap: 10px;
+        margin-bottom: 22px;
       }
-      .color-chip {
-        min-width: 46px;
-        padding: 8px 12px;
+      .color-picker button {
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
         border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        background: rgba(255,255,255,0.02);
-        font-weight: 800;
-        letter-spacing: 0.08em;
-        color: #dfeafc;
+        line-height: 0;
+        transition: transform 0.14s;
       }
-      .color-chip.active {
-        border-color: transparent;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 8px 20px rgba(59,130,246,0.18);
+      .color-picker button:hover { transform: translateY(-2px) scale(1.04); }
+      .color-picker .pip {
+        filter: grayscale(0.85) brightness(0.62);
+        opacity: 0.75;
+        transition: filter 0.18s, opacity 0.18s, box-shadow 0.18s;
       }
-      .color-chip.W.active { background: linear-gradient(135deg, #f8fafc, #dbeafe); color: #0f172a; }
-      .color-chip.U.active { background: linear-gradient(135deg, #60a5fa, #3b82f6); color: #eff6ff; }
-      .color-chip.B.active { background: linear-gradient(135deg, #1f2937, #111827); color: #f3f4f6; }
-      .color-chip.R.active { background: linear-gradient(135deg, #f87171, #dc2626); color: #fff1f2; }
-      .color-chip.G.active { background: linear-gradient(135deg, #4ade80, #16a34a); color: #ecfdf5; }
-      .color-chip.C.active { background: linear-gradient(135deg, #d1d5db, #9ca3af); color: #111827; }
-      .deck-list {
-        display: grid;
-        gap: 12px;
+      .color-picker button[aria-pressed="true"] .pip {
+        filter: none;
+        opacity: 1;
+        box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--gold), 0 4px 14px rgba(0, 0, 0, 0.5);
       }
+
+      /* ---------- Mana pips ---------- */
+      .pip {
+        display: inline-block;
+        border-radius: 999px;
+        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), inset 0 -2px 4px rgba(0, 0, 0, 0.28), 0 2px 5px rgba(0, 0, 0, 0.4);
+      }
+      .pip svg { display: block; width: 100%; height: 100%; }
+      .pip.pip-lg { width: 40px; height: 40px; }
+      .pip.pip-md { width: 30px; height: 30px; }
+      .pip.pip-sm { width: 22px; height: 22px; }
+
+      /* ---------- Deck list ---------- */
+      .deck-list { display: grid; gap: 11px; }
       .deck-item {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.72));
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 14px;
-        padding: 12px 14px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        gap: 14px;
+        padding: 13px 15px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--line-soft);
+        border-left: 3px solid rgba(201, 162, 75, 0.5);
+        background: linear-gradient(180deg, var(--raised), #14161e);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        transition: border-color 0.16s, transform 0.16s, box-shadow 0.16s;
+      }
+      .deck-item:hover {
+        transform: translateX(2px);
+        border-left-color: var(--gold-bright);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 18px rgba(0, 0, 0, 0.35);
       }
       .deck-item.excluded {
         opacity: 0.5;
+        border-left-color: var(--faint);
+        filter: grayscale(0.4);
       }
-      .deck-main {
-        min-width: 0;
-      }
+      .deck-main { flex: 1 1 auto; min-width: 0; }
       .deck-name {
-        font-weight: 700;
+        font-family: var(--serif);
+        font-weight: 600;
+        font-size: 1.18rem;
+        letter-spacing: 0.01em;
+        color: var(--parchment);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        color: #f8fbff;
       }
-      .badge-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 7px;
+      .identity { display: flex; align-items: center; gap: 5px; margin-top: 7px; }
+      .deck-actions { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+      .icon-btn {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border-radius: var(--r-sm);
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition: background 0.14s, color 0.14s, border-color 0.14s;
       }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 28px;
-        height: 25px;
-        padding: 0 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        color: #fff;
-        font-size: 0.74rem;
-        font-weight: 800;
-        letter-spacing: 0.05em;
+      .icon-btn svg { width: 17px; height: 17px; }
+      .icon-btn:hover { background: rgba(233, 227, 212, 0.07); color: var(--parchment); border-color: var(--line-soft); }
+      .icon-btn.danger:hover { background: rgba(217, 105, 90, 0.14); color: var(--danger); border-color: rgba(217, 105, 90, 0.4); }
+
+      /* ---------- Results ---------- */
+      .results { display: grid; gap: 13px; }
+      .result-card {
+        padding: 16px 17px;
+        border-radius: var(--r-md);
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(140% 120% at 0% 0%, rgba(201, 162, 75, 0.07), transparent 46%),
+          linear-gradient(180deg, var(--raised), #13151d);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
       }
-      .badge.W { background: linear-gradient(135deg, #f8fafc, #dbeafe); color: #111827; }
-      .badge.U { background: linear-gradient(135deg, #60a5fa, #2563eb); }
-      .badge.B { background: linear-gradient(135deg, #475569, #0f172a); }
-      .badge.R { background: linear-gradient(135deg, #f87171, #dc2626); }
-      .badge.G { background: linear-gradient(135deg, #4ade80, #16a34a); }
-      .badge.C { background: linear-gradient(135deg, #e5e7eb, #9ca3af); color: #111827; }
-      .deck-actions {
+      .result-card.reveal { animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .pick-no {
+        font-family: var(--ui);
+        font-size: 0.66rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--gold);
+      }
+      .pick-name {
+        font-family: var(--serif);
+        font-weight: 600;
+        font-size: 1.4rem;
+        line-height: 1.15;
+        margin: 3px 0 14px;
+        color: var(--parchment);
+        transition: opacity 0.4s ease, color 0.4s ease;
+      }
+      /* While the dice are still rolling, the drawn deck is not yet revealed. */
+      .pick-name.pending {
+        color: var(--muted);
+        font-style: italic;
+        font-weight: 500;
+        opacity: 0.7;
+      }
+      .result-foot { transition: opacity 0.4s ease; }
+      .result-foot.pending { opacity: 0; }
+      .dice-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+      .die.rolling { animation: dieWobble 0.5s ease-in-out infinite; }
+      @keyframes dieWobble {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-3px) rotate(4deg); }
+      }
+      .die {
+        width: 46px;
+        height: 46px;
+        display: grid;
+        place-items: center;
+        border-radius: 11px;
+        background: linear-gradient(160deg, #23262f, #14161d);
+        border: 1px solid rgba(233, 227, 212, 0.09);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -3px 6px rgba(0, 0, 0, 0.4), 0 3px 7px rgba(0, 0, 0, 0.4);
+      }
+      .die .pip { box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 -2px 3px rgba(0, 0, 0, 0.25); }
+      .result-foot {
         display: flex;
         align-items: center;
         gap: 8px;
-        flex-wrap: wrap;
-      }
-      .tiny {
-        padding: 7px 10px;
-        font-size: 0.84rem;
-        border-radius: 9px;
-      }
-      .danger {
-        border-color: rgba(252, 165, 165, 0.4);
-        color: var(--danger);
-      }
-      .results {
-        display: grid;
-        gap: 12px;
-      }
-      .result-card {
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        border-radius: 14px;
-        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9), rgba(15, 23, 42, 0.74));
-        padding: 12px 14px;
-      }
-      .result-header {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 8px;
-        color: #f1f5f9;
-      }
-      .muted { color: var(--muted); }
-      .empty {
-        padding: 20px;
-        border-radius: 12px;
-        border: 1px dashed rgba(148, 163, 184, 0.35);
+        padding-top: 11px;
+        border-top: 1px solid var(--line-soft);
+        font-family: var(--ui);
+        font-size: 0.68rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
         color: var(--muted);
-        text-align: center;
-        background: rgba(15, 23, 42, 0.3);
       }
-      @media (max-width: 780px) {
+      .result-foot .identity { margin: 0; }
+
+      /* ---------- Empty states ---------- */
+      .empty {
+        padding: 30px 22px;
+        text-align: center;
+        border-radius: var(--r-md);
+        border: 1px dashed var(--line);
+        background: rgba(13, 15, 20, 0.4);
+      }
+      .empty .glyph { opacity: 0.5; margin: 0 auto 12px; }
+      .empty p {
+        margin: 0;
+        font-style: italic;
+        font-size: 1.08rem;
+        color: var(--muted);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--gold-bright);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+
+      @media (max-width: 820px) {
         .layout { grid-template-columns: 1fr; }
-        form.deck-form { grid-template-columns: 1fr; }
-        header { flex-direction: column; align-items: flex-start; }
+        .deck-form { grid-template-columns: 1fr; }
+        .masthead { align-items: flex-start; }
+        .today { text-align: left; }
+        .ritual { justify-content: center; }
+      }
+      @media (max-width: 440px) {
+        body { font-size: 17px; }
+        .roll-btn { flex: 1 1 100%; justify-content: center; }
+        .die { width: 42px; height: 42px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
       }
     </style>
   </head>
   <body>
+    <!-- Shared gradient defs for every mana pip on the page -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <radialGradient id="pgW" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#fbf7e4"/><stop offset="100%" stop-color="#e8dfbe"/></radialGradient>
+        <radialGradient id="pgU" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#d3ecfc"/><stop offset="100%" stop-color="#a6d4f2"/></radialGradient>
+        <radialGradient id="pgB" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#d8d1ca"/><stop offset="100%" stop-color="#b7ada3"/></radialGradient>
+        <radialGradient id="pgR" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#f7c6b0"/><stop offset="100%" stop-color="#ec9b80"/></radialGradient>
+        <radialGradient id="pgG" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#c1e2c4"/><stop offset="100%" stop-color="#97c99e"/></radialGradient>
+        <radialGradient id="pgC" cx="38%" cy="30%" r="78%"><stop offset="0%" stop-color="#dbd5ca"/><stop offset="100%" stop-color="#bdb6aa"/></radialGradient>
+      </defs>
+    </svg>
+
     <div class="page">
-      <header class="panel">
-        <h1>Mana Roll</h1>
-        <div class="toolbar">
-          <div class="stepper" aria-label="Decks to roll for">
-            <button type="button" id="decrease-count" aria-label="Decrease roll count">−</button>
-            <span id="roll-count" class="value">4</span>
-            <button type="button" id="increase-count" aria-label="Increase roll count">+</button>
+      <header class="masthead">
+        <div class="brand">
+          <svg class="sigil" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="46" fill="none" stroke="url(#pgW)" stroke-width="2" opacity="0.35"/>
+            <g>
+              <circle cx="50" cy="16" r="9" fill="#e8dfbe"/>
+              <circle cx="79" cy="38" r="9" fill="#a6d4f2"/>
+              <circle cx="68" cy="76" r="9" fill="#b7ada3"/>
+              <circle cx="32" cy="76" r="9" fill="#ec9b80"/>
+              <circle cx="21" cy="38" r="9" fill="#97c99e"/>
+              <circle cx="50" cy="50" r="10" fill="none" stroke="#c9a24b" stroke-width="2.5"/>
+            </g>
+          </svg>
+          <div class="brand-text">
+            <h1>Mana Roll</h1>
+            <p class="tagline">Let the color pie choose today's deck.</p>
           </div>
-          <button type="button" id="roll-button" class="primary">Roll today</button>
+        </div>
+        <div class="today">
+          Today's draw
+          <b id="today-date">—</b>
         </div>
       </header>
 
+      <section class="ritual" aria-label="Roll controls">
+        <div class="ritual-left">
+          <span class="field-label">Decks to draw</span>
+          <div class="stepper" role="group" aria-label="Number of decks to draw">
+            <button type="button" id="decrease-count" aria-label="Fewer decks">−</button>
+            <span id="roll-count" class="value">4</span>
+            <button type="button" id="increase-count" aria-label="More decks">+</button>
+          </div>
+        </div>
+        <button type="button" id="roll-button" class="roll-btn">
+          <svg class="die-ico" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="12" y="12" width="76" height="76" rx="16" fill="none" stroke="currentColor" stroke-width="8"/>
+            <circle cx="34" cy="34" r="7" fill="currentColor"/>
+            <circle cx="66" cy="34" r="7" fill="currentColor"/>
+            <circle cx="50" cy="50" r="7" fill="currentColor"/>
+            <circle cx="34" cy="66" r="7" fill="currentColor"/>
+            <circle cx="66" cy="66" r="7" fill="currentColor"/>
+          </svg>
+          Roll today
+        </button>
+      </section>
+
       <div class="layout">
-        <main class="panel section">
-          <h2>Decks</h2>
-          <form class="deck-form" id="deck-form">
-            <input id="deck-name" type="text" placeholder="Deck name" maxlength="80" />
-            <button type="submit">Add deck</button>
-          </form>
-          <div class="color-picker" id="color-picker" aria-label="Choose deck colors"></div>
-          <div id="deck-list" class="deck-list"></div>
+        <main class="panel">
+          <div class="panel-body">
+            <div class="eyebrow">
+              <h2>Your decks</h2>
+              <span class="count" id="deck-count">0</span>
+            </div>
+
+            <form class="deck-form" id="deck-form">
+              <input id="deck-name" type="text" placeholder="Name a deck…" maxlength="80" autocomplete="off" />
+              <button type="submit" class="btn-add">Add deck</button>
+            </form>
+
+            <p class="picker-label">Color identity</p>
+            <div class="color-picker" id="color-picker" aria-label="Choose color identity"></div>
+
+            <div id="deck-list" class="deck-list"></div>
+          </div>
         </main>
 
-        <aside class="panel section">
-          <h2>Today's results</h2>
-          <div id="results" class="results"></div>
+        <aside class="panel">
+          <div class="panel-body">
+            <div class="eyebrow">
+              <h2>Today's draw</h2>
+            </div>
+            <div id="results" class="results" aria-live="polite"></div>
+          </div>
         </aside>
       </div>
     </div>
 
     <script>
-      const STORAGE_KEYS = {
-        decks: 'mana-roll.decks',
-        rolls: 'mana-roll.rolls',
-        count: 'mana-roll-target-count',
-        excluded: 'mana-roll-excluded-decks',
+      /* ---------------------------------------------------------------
+         Mana symbols — original glyph art (not WotC's trademarked pips)
+      --------------------------------------------------------------- */
+      const MANA = {
+        W: { name: "White" },
+        U: { name: "Blue" },
+        B: { name: "Black" },
+        R: { name: "Red" },
+        G: { name: "Green" },
+        C: { name: "Colorless" },
       };
-      const COLORS = ['W', 'U', 'B', 'R', 'G', 'C'];
+
+      function glyphMarkup(c, sym) {
+        const hole = `url(#pg${c})`;
+        switch (c) {
+          case "W": {
+            const pts = [
+              [76, 50, 90, 50], [68.4, 68.4, 78.3, 78.3], [50, 76, 50, 90], [31.6, 68.4, 21.7, 78.3],
+              [24, 50, 10, 50], [31.6, 31.6, 21.7, 21.7], [50, 24, 50, 10], [68.4, 31.6, 78.3, 21.7],
+            ];
+            const rays = pts.map(([a, b, x, y]) => `<line x1="${a}" y1="${b}" x2="${x}" y2="${y}"/>`).join("");
+            return `<g stroke="${sym}" stroke-width="7" stroke-linecap="round">${rays}</g><circle cx="50" cy="50" r="17" fill="${sym}"/>`;
+          }
+          case "U":
+            return `<path d="M50 18 C42 40 30 50 30 62 a20 20 0 1 0 40 0 C70 50 58 40 50 18 Z" fill="${sym}"/>`
+              + `<ellipse cx="41" cy="52" rx="4.5" ry="9" fill="rgba(255,255,255,.42)" transform="rotate(-18 41 52)"/>`;
+          case "B": {
+            const skull = "M50 20 C34 20 24 32 24 48 C24 58 29 64 34 68 L34 74 C34 77 36 79 39 79 C41 79 42 77 43 76 C44 74 46 73 47 74 C48 75 48 79 50 79 C52 79 52 75 53 74 C54 73 56 74 57 76 C58 77 59 79 61 79 C64 79 66 77 66 74 L66 68 C71 64 76 58 76 48 C76 32 66 20 50 20 Z";
+            return `<path d="${skull}" fill="${sym}"/>`
+              + `<circle cx="40" cy="46" r="8" fill="${hole}"/><circle cx="60" cy="46" r="8" fill="${hole}"/>`
+              + `<path d="M50 52 L45 62 L55 62 Z" fill="${hole}"/>`;
+          }
+          case "R":
+            return `<path d="M50 16 C52 32 68 40 68 56 A18 18 0 0 1 32 56 C32 45 42 44 44 34 C47 42 52 40 51 32 C50 26 48 22 50 16 Z" fill="${sym}"/>`
+              + `<path d="M50 40 C52 48 58 51 58 58 a8 8 0 0 1 -16 0 C42 51 48 49 50 40 Z" fill="rgba(255,255,255,.30)"/>`;
+          case "G":
+            return `<rect x="46" y="52" width="8" height="30" rx="3" fill="${sym}"/>`
+              + `<circle cx="50" cy="38" r="18" fill="${sym}"/><circle cx="36" cy="48" r="12" fill="${sym}"/><circle cx="64" cy="48" r="12" fill="${sym}"/>`;
+          case "C":
+            return `<path d="M35 32 L65 32 L78 46 L50 82 L22 46 Z" fill="${sym}"/>`
+              + `<path d="M35 32 L65 32 L57 46 L43 46 Z" fill="rgba(255,255,255,.24)"/>`
+              + `<g fill="none" stroke="rgba(0,0,0,.22)" stroke-width="2.5" stroke-linejoin="round"><path d="M22 46 H78"/><path d="M35 32 L43 46 L50 82"/><path d="M65 32 L57 46 L50 82"/><path d="M43 46 H57"/></g>`;
+        }
+        return "";
+      }
+
+      const SYM_COLOR = { W: "#6d6034", U: "#155b86", B: "#2a2521", R: "#92311d", G: "#1f5a30", C: "#4b4942" };
+
+      function pipEl(c, sizeClass) {
+        const span = document.createElement("span");
+        span.className = `pip ${sizeClass}`;
+        span.setAttribute("role", "img");
+        span.setAttribute("aria-label", (MANA[c] || MANA.C).name);
+        span.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="49" fill="url(#pg${c})"/>${glyphMarkup(c, SYM_COLOR[c] || SYM_COLOR.C)}</svg>`;
+        return span;
+      }
+
+      /* ---------------------------------------------------------------
+         Icons for deck actions
+      --------------------------------------------------------------- */
+      const ICONS = {
+        eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+        eyeOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c6.5 0 10 6 10 6a15.8 15.8 0 0 1-3 3.5"/><path d="M6.5 8.5A15.7 15.7 0 0 0 2 12s3.5 7 10 7a9.5 9.5 0 0 0 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+        pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+      };
+
+      /* ---------------------------------------------------------------
+         Storage + state  (schema preserved from the original app)
+      --------------------------------------------------------------- */
+      const STORAGE_KEYS = {
+        decks: "mana-roll.decks",
+        rolls: "mana-roll.rolls",
+        count: "mana-roll-target-count",
+        excluded: "mana-roll-excluded-decks",
+      };
+      const COLORS = ["W", "U", "B", "R", "G", "C"];
       const COLOR_ORDER = { C: 0, W: 1, U: 2, B: 3, R: 4, G: 5 };
       const DEFAULT_ROLL_COUNT = 4;
       const MAX_ROLL_COUNT = 40;
 
-      const state = {
-        decks: [],
-        excluded: [],
-        rollCount: DEFAULT_ROLL_COUNT,
-        results: [],
-      };
+      const state = { decks: [], excluded: [], rollCount: DEFAULT_ROLL_COUNT, results: [] };
+
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       function clampRollCount(value) {
         if (!Number.isFinite(value)) return DEFAULT_ROLL_COUNT;
         return Math.max(1, Math.min(MAX_ROLL_COUNT, Math.floor(value)));
       }
-
       function normalizeColors(colors) {
         if (!Array.isArray(colors)) return [];
         const unique = [...new Set(colors.filter((color) => COLORS.includes(color)))];
-        if (unique.includes('C')) return ['C'];
-        return unique.sort((left, right) => (COLOR_ORDER[left] || 0) - (COLOR_ORDER[right] || 0));
+        if (unique.includes("C")) return ["C"];
+        return unique.sort((l, r) => (COLOR_ORDER[l] || 0) - (COLOR_ORDER[r] || 0));
       }
-
-      function colorKey(colors) {
-        return normalizeColors(colors).join(',');
-      }
+      function colorKey(colors) { return normalizeColors(colors).join(","); }
 
       function loadJSON(key, fallback) {
         try {
@@ -361,360 +741,408 @@
           if (!raw) return fallback;
           const parsed = JSON.parse(raw);
           return parsed ?? fallback;
-        } catch (_error) {
-          return fallback;
-        }
+        } catch (_e) { return fallback; }
       }
-
       function saveJSON(key, value) {
-        try {
-          window.localStorage.setItem(key, JSON.stringify(value));
-        } catch (_error) {
-          // Browser storage may be unavailable. Ignore gracefully.
-        }
+        try { window.localStorage.setItem(key, JSON.stringify(value)); } catch (_e) {}
       }
 
       function getDecks() {
-        state.decks = Array.isArray(loadJSON(STORAGE_KEYS.decks, [])) ? loadJSON(STORAGE_KEYS.decks, []) : [];
+        const parsed = loadJSON(STORAGE_KEYS.decks, []);
+        state.decks = Array.isArray(parsed) ? parsed : [];
         return state.decks;
       }
-
-      function saveDecks() {
-        saveJSON(STORAGE_KEYS.decks, state.decks);
-      }
-
-      function getRolls() {
-        return loadJSON(STORAGE_KEYS.rolls, {});
-      }
-
-      function saveRolls(rolls) {
-        saveJSON(STORAGE_KEYS.rolls, rolls);
-      }
-
+      function saveDecks() { saveJSON(STORAGE_KEYS.decks, state.decks); }
+      function getRolls() { return loadJSON(STORAGE_KEYS.rolls, {}); }
+      function saveRolls(rolls) { saveJSON(STORAGE_KEYS.rolls, rolls); }
       function getExcludedIds() {
         const parsed = loadJSON(STORAGE_KEYS.excluded, []);
-        state.excluded = Array.isArray(parsed) ? parsed.filter((value) => Number.isFinite(value)) : [];
+        state.excluded = Array.isArray(parsed) ? parsed.filter((v) => Number.isFinite(v)) : [];
         return state.excluded;
       }
-
-      function saveExcludedIds() {
-        saveJSON(STORAGE_KEYS.excluded, state.excluded);
-      }
+      function saveExcludedIds() { saveJSON(STORAGE_KEYS.excluded, state.excluded); }
 
       function getTodayKey() {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, "0");
+        const d = String(now.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
       }
-
       function getRollCount() {
         const value = Number(window.localStorage.getItem(STORAGE_KEYS.count));
         state.rollCount = clampRollCount(Number.isFinite(value) ? value : DEFAULT_ROLL_COUNT);
         return state.rollCount;
       }
+      function saveRollCount() { window.localStorage.setItem(STORAGE_KEYS.count, String(state.rollCount)); }
+      function getEligibleDecks() { return getDecks().filter((deck) => !state.excluded.includes(deck.id)); }
 
-      function saveRollCount() {
-        window.localStorage.setItem(STORAGE_KEYS.count, String(state.rollCount));
-      }
-
-      function getEligibleDecks() {
-        return getDecks().filter((deck) => !state.excluded.includes(deck.id));
-      }
-
+      // Roll five dice across ALL six faces, colorless included (like a real mana die).
       function randomDiceRoll() {
         const dice = [];
-        for (let index = 0; index < 5; index += 1) {
-          dice.push(COLORS[Math.floor(Math.random() * COLORS.length)]);
-        }
+        for (let i = 0; i < 5; i += 1) dice.push(COLORS[Math.floor(Math.random() * COLORS.length)]);
         return dice;
       }
-
-      function matchedColorsForDice(dice) {
-        const filtered = dice.filter((value) => value !== 'C');
-        if (filtered.length === 0) return ['C'];
-        return normalizeColors(filtered);
+      // Reduce a roll to a color identity: colorless is ignored unless every face
+      // is colorless, in which case the identity is colorless. So 2C + 3G -> [G],
+      // and 5C -> [C].
+      function reduceIdentity(dice) {
+        const colored = dice.filter((v) => v !== "C");
+        if (colored.length === 0) return ["C"];
+        return normalizeColors(colored);
       }
-
+      // Synthesize a roll whose reduced identity is exactly `colors` (may include
+      // some colorless faces). Used only for the rare fallback below.
+      function diceForIdentity(colors) {
+        const id = Array.isArray(colors) && colors.length ? normalizeColors(colors) : ["C"];
+        if (id.length === 1 && id[0] === "C") return ["C", "C", "C", "C", "C"];
+        const faces = [...id]; // guarantee each identity color appears at least once
+        const pool = [...id, "C"]; // remaining slots: identity colors or colorless
+        while (faces.length < 5) faces.push(pool[Math.floor(Math.random() * pool.length)]);
+        for (let i = faces.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [faces[i], faces[j]] = [faces[j], faces[i]];
+        }
+        return faces.slice(0, 5);
+      }
       function createDeckRecord(name, colors) {
-        return {
-          id: Date.now() + Math.random(),
-          name: name.trim(),
-          colors: normalizeColors(colors).length ? normalizeColors(colors) : ['C'],
-        };
+        const n = normalizeColors(colors);
+        return { id: Date.now() + Math.random(), name: name.trim(), colors: n.length ? n : ["C"] };
       }
 
+      // Dice-first: roll the dice, reduce to an identity, and let that identity
+      // choose an eligible deck whose color identity matches exactly. Re-roll until
+      // we've filled the requested number of distinct decks (or exhaust our budget,
+      // then fall back to whatever eligible decks remain).
       function generateRollResults(eligibleDecks, count) {
-        const pool = [...eligibleDecks];
+        const target = Math.min(count, eligibleDecks.length);
         const used = new Set();
         const results = [];
 
-        while (results.length < count && pool.length > 0) {
-          const candidate = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-          if (!candidate) break;
-          if (!used.has(candidate.id)) {
-            used.add(candidate.id);
-            results.push({
-              deckId: candidate.id,
-              deckName: candidate.name,
-              colors: candidate.colors,
-              dice: randomDiceRoll(),
-            });
-          }
-        }
-
-        if (results.length >= count) return results.slice(0, count);
-
         let attempts = 0;
-        while (results.length < count && attempts < 2000) {
+        const MAX_ATTEMPTS = 6000;
+        while (results.length < target && attempts < MAX_ATTEMPTS) {
           attempts += 1;
           const dice = randomDiceRoll();
-          const matched = matchedColorsForDice(dice);
-          const key = colorKey(matched);
-          const deck = eligibleDecks.find((candidate) => !used.has(candidate.id) && colorKey(candidate.colors) === key);
-          if (deck) {
+          const key = colorKey(reduceIdentity(dice));
+          const matches = eligibleDecks.filter((d) => !used.has(d.id) && colorKey(d.colors) === key);
+          if (matches.length) {
+            const deck = matches[Math.floor(Math.random() * matches.length)];
             used.add(deck.id);
-            results.push({
-              deckId: deck.id,
-              deckName: deck.name,
-              colors: matched,
-              dice,
-            });
+            results.push({ deckId: deck.id, deckName: deck.name, colors: deck.colors, dice });
           }
         }
 
-        if (results.length < count) {
-          const remaining = eligibleDecks.filter((deck) => !used.has(deck.id));
-          remaining.slice(0, count - results.length).forEach((deck) => {
-            results.push({
-              deckId: deck.id,
-              deckName: deck.name,
-              colors: deck.colors,
-              dice: randomDiceRoll(),
+        // Fallback: if some identities never came up, fill the remaining slots with
+        // decks that haven't been drawn, giving each a roll consistent with its identity.
+        if (results.length < target) {
+          eligibleDecks
+            .filter((d) => !used.has(d.id))
+            .slice(0, target - results.length)
+            .forEach((deck) => {
+              used.add(deck.id);
+              results.push({ deckId: deck.id, deckName: deck.name, colors: deck.colors, dice: diceForIdentity(deck.colors) });
             });
-          });
         }
 
-        return results.slice(0, count);
+        return results.slice(0, target);
       }
 
-      function renderColorPicker() {
-        const picker = document.getElementById('color-picker');
-        picker.innerHTML = '';
-        const selected = new Set(document.getElementById('deck-name').dataset.colors ? JSON.parse(document.getElementById('deck-name').dataset.colors) : []);
+      /* ---------------------------------------------------------------
+         Rendering
+      --------------------------------------------------------------- */
+      const $ = (id) => document.getElementById(id);
 
+      function renderColorPicker() {
+        const picker = $("color-picker");
+        picker.innerHTML = "";
+        const selected = new Set(JSON.parse($("deck-name").dataset.colors || "[]"));
         COLORS.forEach((color) => {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.className = `color-chip ${color} ${selected.has(color) ? 'active' : ''}`;
-          button.textContent = color;
-          button.addEventListener('click', () => {
-            const current = JSON.parse(document.getElementById('deck-name').dataset.colors || '[]');
-            const exists = current.includes(color);
-            const next = exists ? current.filter((value) => value !== color) : [...current, color];
-            document.getElementById('deck-name').dataset.colors = JSON.stringify(next);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.setAttribute("aria-pressed", selected.has(color) ? "true" : "false");
+          button.setAttribute("aria-label", MANA[color].name);
+          button.appendChild(pipEl(color, "pip-lg"));
+          button.addEventListener("click", () => {
+            const current = JSON.parse($("deck-name").dataset.colors || "[]");
+            const next = current.includes(color) ? current.filter((v) => v !== color) : [...current, color];
+            $("deck-name").dataset.colors = JSON.stringify(next);
             renderColorPicker();
           });
           picker.appendChild(button);
         });
       }
 
+      function identityRow(colors, size) {
+        const wrap = document.createElement("div");
+        wrap.className = "identity";
+        const list = normalizeColors(colors);
+        (list.length ? list : ["C"]).forEach((c) => wrap.appendChild(pipEl(c, size)));
+        return wrap;
+      }
+
       function renderDecks() {
-        const list = document.getElementById('deck-list');
+        const list = $("deck-list");
         const decks = getDecks();
-        list.innerHTML = '';
+        $("deck-count").textContent = String(decks.length);
+        list.innerHTML = "";
 
         if (!decks.length) {
-          list.innerHTML = '<div class="empty">Add a deck to get started.</div>';
+          list.innerHTML =
+            '<div class="empty"><p>Your spellbook is empty. Name a deck and mark its colors to begin.</p></div>';
           return;
         }
 
         decks.forEach((deck) => {
-          const item = document.createElement('div');
-          item.className = `deck-item ${state.excluded.includes(deck.id) ? 'excluded' : ''}`;
+          const excluded = state.excluded.includes(deck.id);
+          const item = document.createElement("div");
+          item.className = `deck-item ${excluded ? "excluded" : ""}`;
 
-          const main = document.createElement('div');
-          main.className = 'deck-main';
-
-          const title = document.createElement('div');
-          title.className = 'deck-name';
+          const main = document.createElement("div");
+          main.className = "deck-main";
+          const title = document.createElement("div");
+          title.className = "deck-name";
           title.textContent = deck.name;
           main.appendChild(title);
+          main.appendChild(identityRow(deck.colors, "pip-sm"));
 
-          const badges = document.createElement('div');
-          badges.className = 'badge-row';
-          const colors = normalizeColors(deck.colors);
-          if (!colors.length) {
-            const badge = document.createElement('span');
-            badge.className = 'badge C';
-            badge.textContent = 'C';
-            badges.appendChild(badge);
-          } else {
-            colors.forEach((color) => {
-              const badge = document.createElement('span');
-              badge.className = `badge ${color}`;
-              badge.textContent = color;
-              badges.appendChild(badge);
-            });
-          }
-          main.appendChild(badges);
+          const actions = document.createElement("div");
+          actions.className = "deck-actions";
 
-          const actions = document.createElement('div');
-          actions.className = 'deck-actions';
-
-          const toggleExclude = document.createElement('button');
-          toggleExclude.type = 'button';
-          toggleExclude.className = 'tiny';
-          toggleExclude.textContent = state.excluded.includes(deck.id) ? 'Include' : 'Exclude';
-          toggleExclude.addEventListener('click', () => {
-            if (state.excluded.includes(deck.id)) {
-              state.excluded = state.excluded.filter((value) => value !== deck.id);
-            } else {
-              state.excluded.push(deck.id);
-            }
+          const toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "icon-btn";
+          toggle.innerHTML = excluded ? ICONS.eyeOff : ICONS.eye;
+          toggle.title = excluded ? "Include in rolls" : "Bench (exclude from rolls)";
+          toggle.setAttribute("aria-label", toggle.title);
+          toggle.addEventListener("click", () => {
+            if (excluded) state.excluded = state.excluded.filter((v) => v !== deck.id);
+            else state.excluded.push(deck.id);
             saveExcludedIds();
             renderDecks();
-            renderResults();
           });
 
-          const rename = document.createElement('button');
-          rename.type = 'button';
-          rename.className = 'tiny';
-          rename.textContent = 'Rename';
-          rename.addEventListener('click', () => {
-            const nextName = window.prompt('New deck name', deck.name);
-            if (nextName === null) return;
-            const trimmed = nextName.trim();
+          const rename = document.createElement("button");
+          rename.type = "button";
+          rename.className = "icon-btn";
+          rename.innerHTML = ICONS.pencil;
+          rename.title = "Rename deck";
+          rename.setAttribute("aria-label", "Rename deck");
+          rename.addEventListener("click", () => {
+            const next = window.prompt("New deck name", deck.name);
+            if (next === null) return;
+            const trimmed = next.trim();
             if (!trimmed) return;
             deck.name = trimmed;
             saveDecks();
             renderDecks();
           });
 
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'tiny danger';
-          remove.textContent = 'Delete';
-          remove.addEventListener('click', () => {
-            if (!window.confirm(`Delete ${deck.name}?`)) return;
-            state.decks = state.decks.filter((candidate) => candidate.id !== deck.id);
-            state.excluded = state.excluded.filter((value) => value !== deck.id);
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "icon-btn danger";
+          remove.innerHTML = ICONS.trash;
+          remove.title = "Delete deck";
+          remove.setAttribute("aria-label", "Delete deck");
+          remove.addEventListener("click", () => {
+            if (!window.confirm(`Delete “${deck.name}”?`)) return;
+            state.decks = state.decks.filter((c) => c.id !== deck.id);
+            state.excluded = state.excluded.filter((v) => v !== deck.id);
             saveDecks();
             saveExcludedIds();
             renderDecks();
-            renderResults();
+            renderResults(false);
           });
 
-          actions.appendChild(toggleExclude);
-          actions.appendChild(rename);
-          actions.appendChild(remove);
-          item.appendChild(main);
-          item.appendChild(actions);
+          actions.append(toggle, rename, remove);
+          item.append(main, actions);
           list.appendChild(item);
         });
       }
 
-      function renderResults() {
-        const resultsEl = document.getElementById('results');
+      // Start every die in `scope` spinning continuously through all six colors,
+      // and return a settle(onDone) that lands the dice on their rolled faces
+      // (staggered), firing onDone once the last die in this pick has landed.
+      // Because settling is caller-driven, a pick keeps spinning until told to stop.
+      function spinDice(scope) {
+        const dice = [...scope.querySelectorAll(".die[data-final]")];
+        if (prefersReducedMotion || !dice.length) {
+          return (onDone) => {
+            dice.forEach((die) => die.replaceChildren(pipEl(die.getAttribute("data-final"), "pip-md")));
+            if (onDone) onDone();
+          };
+        }
+        const timers = dice.map((die, i) => {
+          die.classList.add("rolling");
+          return window.setInterval(() => {
+            die.replaceChildren(pipEl(COLORS[Math.floor(Math.random() * COLORS.length)], "pip-md"));
+          }, 70 + i * 14);
+        });
+        return (onDone) => {
+          let remaining = dice.length;
+          dice.forEach((die, i) => {
+            window.setTimeout(() => {
+              window.clearInterval(timers[i]);
+              die.classList.remove("rolling");
+              die.replaceChildren(pipEl(die.getAttribute("data-final"), "pip-md"));
+              remaining -= 1;
+              if (remaining === 0 && onDone) onDone();
+            }, i * 90); // land this pick's five dice left-to-right
+          });
+        };
+      }
+
+      function renderResults(animate) {
+        const el = $("results");
         const rolls = getRolls();
         const todayKey = getTodayKey();
         const todayResults = Array.isArray(rolls[todayKey]?.results) ? rolls[todayKey].results : [];
         state.results = todayResults;
+        el.innerHTML = "";
 
         if (!todayResults.length) {
-          resultsEl.innerHTML = '<div class="empty">No rolls yet. Hit “Roll today” to generate a result.</div>';
+          el.innerHTML =
+            '<div class="empty"><p>Nothing drawn yet. Roll the dice to see which decks the mana calls for today.</p></div>';
           return;
         }
 
-        resultsEl.innerHTML = '';
+        const rolling = animate && !prefersReducedMotion;
+        const pending = []; // picks waiting to be settled, in order
+
         todayResults.forEach((result, index) => {
-          const card = document.createElement('div');
-          card.className = 'result-card';
-          const header = document.createElement('div');
-          header.className = 'result-header';
-          const label = document.createElement('strong');
-          label.textContent = `Pick ${index + 1}`;
-          const deck = document.createElement('span');
-          deck.textContent = result.deckName || 'No match';
-          header.appendChild(label);
-          header.appendChild(deck);
+          const card = document.createElement("div");
+          card.className = "result-card" + (rolling ? " reveal" : "");
+          if (rolling) card.style.animationDelay = `${index * 90}ms`;
 
-          const dice = document.createElement('div');
-          dice.className = 'muted';
-          dice.textContent = result.dice ? `Dice: ${result.dice.join(' ')}` : 'Dice: —';
+          const no = document.createElement("div");
+          no.className = "pick-no";
+          no.textContent = `Pick ${index + 1}`;
 
-          const match = document.createElement('div');
-          match.className = 'muted';
-          match.textContent = `Colors: ${Array.isArray(result.colors) && result.colors.length ? result.colors.join(' ') : '—'}`;
+          const name = document.createElement("div");
+          name.className = "pick-name";
+          // Keep the drawn deck hidden until the dice settle, so the roll reveals it.
+          name.textContent = rolling ? "Rolling\u2026" : result.deckName || "No match";
+          if (rolling) name.classList.add("pending");
 
-          card.appendChild(header);
-          card.appendChild(dice);
-          card.appendChild(match);
-          resultsEl.appendChild(card);
+          const dice = document.createElement("div");
+          dice.className = "dice-row";
+          (Array.isArray(result.dice) ? result.dice : []).forEach((face) => {
+            const die = document.createElement("div");
+            die.className = "die";
+            die.setAttribute("data-final", face);
+            // Start each die on a random face while rolling, not its final value.
+            const startFace = rolling ? COLORS[Math.floor(Math.random() * COLORS.length)] : face;
+            die.appendChild(pipEl(startFace, "pip-md"));
+            dice.appendChild(die);
+          });
+
+          const foot = document.createElement("div");
+          foot.className = "result-foot";
+          if (rolling) foot.classList.add("pending");
+          const label = document.createElement("span");
+          label.textContent = "Identity";
+          foot.appendChild(label);
+          foot.appendChild(identityRow(result.colors, "pip-sm"));
+
+          card.append(no, name, dice, foot);
+          el.appendChild(card);
+
+          if (rolling) {
+            // Every pick starts spinning right away; we hold onto its settle fn.
+            pending.push({ settle: spinDice(dice), name, foot, deckName: result.deckName });
+          }
         });
+
+        // Lock the picks in one at a time: a pick keeps rolling until the previous
+        // one has fully landed and revealed its deck.
+        if (rolling && pending.length) {
+          const revealNext = (i) => {
+            if (i >= pending.length) return;
+            const pick = pending[i];
+            pick.settle(() => {
+              pick.name.textContent = pick.deckName || "No match";
+              pick.name.classList.remove("pending");
+              pick.foot.classList.remove("pending");
+              window.setTimeout(() => revealNext(i + 1), 200); // brief beat between picks
+            });
+          };
+          revealNext(0);
+        }
       }
 
       function syncRollCount() {
         const count = getRollCount();
-        document.getElementById('roll-count').textContent = String(count);
-        document.getElementById('decrease-count').disabled = count <= 1;
-        document.getElementById('increase-count').disabled = count >= MAX_ROLL_COUNT;
+        $("roll-count").textContent = String(count);
+        $("decrease-count").disabled = count <= 1;
+        $("increase-count").disabled = count >= MAX_ROLL_COUNT;
       }
 
       function rollToday() {
-        const eligibleDecks = getEligibleDecks();
-        if (!eligibleDecks.length) {
-          window.alert('Add a deck or include some decks before rolling.');
+        const eligible = getEligibleDecks();
+        if (!eligible.length) {
+          window.alert("Add a deck — or bring a benched one back — before rolling.");
           return;
         }
-        const count = Math.min(state.rollCount, eligibleDecks.length);
-        const results = generateRollResults(eligibleDecks, count);
+        const btn = $("roll-button");
+        btn.classList.add("rolling");
+
+        const count = Math.min(state.rollCount, eligible.length);
+        const results = generateRollResults(eligible, count);
         const rolls = getRolls();
-        const todayKey = getTodayKey();
-        rolls[todayKey] = { results };
+        rolls[getTodayKey()] = { results };
         saveRolls(rolls);
-        renderResults();
+        renderResults(true);
+
+        setTimeout(() => btn.classList.remove("rolling"), prefersReducedMotion ? 0 : 560);
       }
 
-      document.getElementById('deck-form').addEventListener('submit', (event) => {
+      /* ---------------------------------------------------------------
+         Wiring
+      --------------------------------------------------------------- */
+      $("deck-form").addEventListener("submit", (event) => {
         event.preventDefault();
-        const input = document.getElementById('deck-name');
+        const input = $("deck-name");
         const raw = input.value.trim();
-        const chosenColors = JSON.parse(input.dataset.colors || '[]');
-        if (!raw) {
-          input.focus();
-          return;
-        }
-        const deck = createDeckRecord(raw, chosenColors);
+        const chosen = JSON.parse(input.dataset.colors || "[]");
+        if (!raw) { input.focus(); return; }
         state.decks = getDecks();
-        state.decks.push(deck);
+        state.decks.push(createDeckRecord(raw, chosen));
         saveDecks();
-        input.value = '';
-        input.dataset.colors = '[]';
+        input.value = "";
+        input.dataset.colors = "[]";
         renderColorPicker();
         renderDecks();
+        input.focus();
       });
 
-      document.getElementById('roll-button').addEventListener('click', rollToday);
-      document.getElementById('decrease-count').addEventListener('click', () => {
+      $("roll-button").addEventListener("click", rollToday);
+      $("decrease-count").addEventListener("click", () => {
         state.rollCount = clampRollCount(getRollCount() - 1);
         saveRollCount();
         syncRollCount();
       });
-      document.getElementById('increase-count').addEventListener('click', () => {
+      $("increase-count").addEventListener("click", () => {
         state.rollCount = clampRollCount(getRollCount() + 1);
         saveRollCount();
         syncRollCount();
       });
 
-      document.getElementById('deck-name').dataset.colors = '[]';
+      // Date in the masthead
+      try {
+        $("today-date").textContent = new Date().toLocaleDateString(undefined, {
+          weekday: "long", month: "long", day: "numeric",
+        });
+      } catch (_e) {
+        $("today-date").textContent = getTodayKey();
+      }
+
+      $("deck-name").dataset.colors = "[]";
       renderColorPicker();
       getExcludedIds();
       getRollCount();
       syncRollCount();
       renderDecks();
-      renderResults();
+      renderResults(false);
     </script>
   </body>
 </html>
